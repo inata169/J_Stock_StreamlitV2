@@ -158,11 +158,16 @@ class ChartDataManager:
         try:
             stock_data = self.data_source.get_stock_info(symbol)
             
+            # データの有効性チェック
+            if not stock_data or not isinstance(stock_data, dict):
+                logger.warning(f"Invalid stock data for {symbol}: {type(stock_data)}")
+                return self._create_empty_chart(f"{symbol}: データ取得失敗", theme)
+            
             # メトリクス正規化（0-100スケール）
             metrics = self._normalize_metrics_for_radar(stock_data)
             
             if not metrics:
-                return self._create_empty_chart("メトリクスデータなし", theme)
+                return self._create_empty_chart(f"{symbol}: メトリクスデータなし", theme)
             
             theme_config = self.chart_themes[theme]
             
@@ -411,35 +416,56 @@ class ChartDataManager:
         """レーダーチャート用メトリクス正規化"""
         metrics = {}
         
+        # データの型チェック
+        if not isinstance(data, dict):
+            logger.error(f"Invalid data type for radar normalization: {type(data)}")
+            return metrics
+        
         # 配当利回り (0-10% → 0-100)
-        if data.get('dividend_yield'):
-            dividend_yield = float(data['dividend_yield'])
-            metrics['配当利回り'] = min(dividend_yield * 10, 100)
+        if data.get('dividend_yield') is not None:
+            try:
+                # Decimalオブジェクトも含めて数値変換
+                dividend_yield = float(str(data['dividend_yield']))
+                metrics['配当利回り'] = min(dividend_yield * 10, 100)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Failed to process dividend_yield: {e}, value: {data.get('dividend_yield')}")
         
         # PER (逆数で評価、低いほど良い: 5-30 → 100-0)
-        if data.get('pe_ratio'):
-            pe_ratio = float(data['pe_ratio'])
-            if 5 <= pe_ratio <= 30:
-                metrics['PER評価'] = max(0, 100 - ((pe_ratio - 5) * 4))
-            elif pe_ratio < 5:
-                metrics['PER評価'] = 100
-            else:
-                metrics['PER評価'] = 0
+        if data.get('pe_ratio') is not None:
+            try:
+                # Decimalオブジェクトも含めて数値変換
+                pe_ratio = float(str(data['pe_ratio']))
+                if 5 <= pe_ratio <= 30:
+                    metrics['PER評価'] = max(0, 100 - ((pe_ratio - 5) * 4))
+                elif pe_ratio < 5:
+                    metrics['PER評価'] = 100
+                else:
+                    metrics['PER評価'] = 0
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Failed to process pe_ratio: {e}, value: {data.get('pe_ratio')}")
         
         # PBR (逆数で評価、低いほど良い: 0.5-3.0 → 100-0)
-        if data.get('pb_ratio'):
-            pb_ratio = float(data['pb_ratio'])
-            if 0.5 <= pb_ratio <= 3.0:
-                metrics['PBR評価'] = max(0, 100 - ((pb_ratio - 0.5) * 40))
-            elif pb_ratio < 0.5:
-                metrics['PBR評価'] = 100
-            else:
-                metrics['PBR評価'] = 0
+        if data.get('pb_ratio') is not None:
+            try:
+                # Decimalオブジェクトも含めて数値変換
+                pb_ratio = float(str(data['pb_ratio']))
+                if 0.5 <= pb_ratio <= 3.0:
+                    metrics['PBR評価'] = max(0, 100 - ((pb_ratio - 0.5) * 40))
+                elif pb_ratio < 0.5:
+                    metrics['PBR評価'] = 100
+                else:
+                    metrics['PBR評価'] = 0
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Failed to process pb_ratio: {e}, value: {data.get('pb_ratio')}")
         
         # ROE (0-30% → 0-100)
-        if data.get('roe'):
-            roe = float(data['roe'])
-            metrics['ROE'] = min(max(0, roe * 3.33), 100)
+        if data.get('roe') is not None:
+            try:
+                # Decimalオブジェクトも含めて数値変換
+                roe = float(str(data['roe']))
+                metrics['ROE'] = min(max(0, roe * 3.33), 100)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Failed to process roe: {e}, value: {data.get('roe')}")
         
         return metrics
     

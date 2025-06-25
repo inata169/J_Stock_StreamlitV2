@@ -146,6 +146,12 @@ class FinancialDataProcessor:
         try:
             dividend_yield = Decimal(str(value))
             
+            # Yahoo Finance APIは配当利回りを小数形式で返す（0.045 = 4.5%）
+            # 1以下の値の場合は百分率に変換
+            if 0 < dividend_yield <= 1:
+                dividend_yield = dividend_yield * 100
+                logger.info(f"Dividend yield converted from decimal to percentage: {value} → {dividend_yield}%")
+            
             # 異常値チェック（50%以上は単位エラーの可能性）
             if dividend_yield > 50:
                 corrected_value = dividend_yield / 100
@@ -362,13 +368,19 @@ class FinancialDataProcessor:
         try:
             roe = Decimal(str(value))
             
+            # Yahoo Finance APIはROEを小数形式で返す場合がある（0.15 = 15%）
+            # 1以下の値の場合は百分率に変換
+            if -1 <= roe <= 1 and roe != 0:
+                roe = roe * 100
+                logger.info(f"ROE converted from decimal to percentage: {value} → {roe}%")
+            
             # ROEの異常値チェック
             if roe > 100 or roe < -100:
                 warnings.append({
                     'level': WarningLevel.WARNING,
                     'field': 'roe',
                     'message': f"ROE異常値: {roe}% → 要確認",
-                    'original_value': roe,
+                    'original_value': value,
                     'corrected_value': roe
                 })
             

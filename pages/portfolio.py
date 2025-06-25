@@ -116,7 +116,10 @@ def parse_csv_file(uploaded_file) -> pd.DataFrame:
             try:
                 uploaded_file.seek(0)
                 content = uploaded_file.read().decode(encoding)
-                df = pd.read_csv(io.StringIO(content))
+                # エラー処理を追加してCSVを読み込む
+                df = pd.read_csv(io.StringIO(content), 
+                                on_bad_lines='skip',  # 不正な行をスキップ
+                                engine='python')      # より柔軟なパーサーを使用
                 break
             except UnicodeDecodeError:
                 continue
