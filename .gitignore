@@ -208,6 +208,10 @@ local_config.toml
 *.p12
 *.pfx
 api_keys.txt
+
+# Package lists
+installed_packages.txt
+requirements-dev.txt
 credentials.json
 
 # データベースファイル
