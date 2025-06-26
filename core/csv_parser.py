@@ -120,7 +120,9 @@ class UnifiedCSVParser:
                     on_bad_lines='skip',
                     engine='python',
                     quoting=1,  # QUOTE_ALL - 引用符を適切に処理
-                    skipinitialspace=True  # 先頭のスペースをスキップ
+                    skipinitialspace=True,  # 先頭のスペースをスキップ
+                    sep=None,  # 自動区切り文字検出
+                    header=None  # ヘッダーを自動判定しない
                 )
                 return df, encoding
             except (UnicodeDecodeError, pd.errors.ParserError):
@@ -133,15 +135,27 @@ class UnifiedCSVParser:
         # ファイル名から判定
         if 'assetbalance' in filename.lower():
             return 'rakuten'
-        elif 'savefile' in filename.lower():
+        elif 'savefile' in filename.lower() or 'new_file' in filename.lower():
             return 'sbi'
         
-        # 内容から判定
-        df_str = str(df.values) + ' '.join(df.columns)
+        # 内容から判定 - 全データを文字列化して検索
+        df_str = ' '.join([str(val) for val in df.values.flatten() if pd.notna(val)])
+        df_str += ' ' + ' '.join([str(col) for col in df.columns if pd.notna(col)])
         
-        if '保有商品詳細' in df_str or '資産合計' in df_str or '銘柄コード・ティッカー' in df_str:
+        logger.info(f"CSV内容検索文字列の最初の500文字: {df_str[:500]}")
+        
+        # 楽天証券パターン
+        if any(pattern in df_str for pattern in [
+            '保有商品詳細', '資産合計', '銘柄コード・ティッカー', 
+            '■特定口座', '■NISA成長投資枠', '平均取得価額［円］'
+        ]):
             return 'rakuten'
-        elif '銘柄コード' in df_str and '取得単価' in df_str:
+        
+        # SBI証券パターン
+        elif any(pattern in df_str for pattern in [
+            '取得単価', '銘柄名称', '保有株数', '評価額合計', 
+            '株式（特定預り）', '投資信託（金額/特定預り）'
+        ]):
             return 'sbi'
         
         return 'generic'
