@@ -39,14 +39,22 @@ class UnifiedCSVParser:
             },
             # 楽天証券（assetbalance形式）
             'rakuten': {
-                '銘柄コード・ティッカー': 'symbol',
+                '銘柄コード・ティッカー': 'symbol',  # 旧形式
+                '銘柄コード': 'symbol',  # 新形式
                 '銘柄': 'name',
+                '銘柄名': 'name',  # 新形式
                 '保有数量': 'quantity',
+                '保有数量［株］': 'quantity',  # 新形式
                 '平均取得価額': 'average_price',
+                '平均取得価額［円］': 'average_price',  # 新形式
                 '現在値': 'current_price',
+                '現在値［円］': 'current_price',  # 新形式
                 '時価評価額[円]': 'market_value',
+                '時価評価額［円］': 'market_value',  # 新形式
                 '評価損益[円]': 'profit_loss',
-                '評価損益[％]': 'profit_loss_percent'
+                '評価損益［円］': 'profit_loss',  # 新形式
+                '評価損益[％]': 'profit_loss_percent',
+                '評価損益［％］': 'profit_loss_percent'  # 新形式
             },
             # 共通パターン
             'common': {
@@ -110,7 +118,9 @@ class UnifiedCSVParser:
                 df = pd.read_csv(
                     io.StringIO(content),
                     on_bad_lines='skip',
-                    engine='python'
+                    engine='python',
+                    quoting=1,  # QUOTE_ALL - 引用符を適切に処理
+                    skipinitialspace=True  # 先頭のスペースをスキップ
                 )
                 return df, encoding
             except (UnicodeDecodeError, pd.errors.ParserError):
@@ -140,25 +150,27 @@ class UnifiedCSVParser:
         """楽天証券CSVの特殊処理"""
         logger.info(f"楽天証券CSV処理開始: 全{len(df)}行")
         
-        # デバッグ: 最初の数行を確認
-        logger.info(f"最初の5行:\n{df.head()}")
+        # デバッグ: 全体の内容を確認
+        logger.info(f"CSV全体の形状: {df.shape}")
+        for idx in range(min(15, len(df))):
+            row_values = [str(val) for val in df.iloc[idx].values if pd.notna(val)]
+            logger.info(f"行 {idx}: {' | '.join(row_values[:8])}")  # 最初の8カラムのみ表示
         
         # 楽天証券のCSVは最初の数行にヘッダー情報があり、実際のデータは後ろにある
         data_start_idx = None
         
         for idx, row in df.iterrows():
             row_str = ' '.join(str(cell) for cell in row if pd.notna(cell))
-            logger.info(f"行 {idx}: {row_str[:100]}...")
             
-            # ヘッダー行を検出（複数フォーマット対応）
-            if ('種別' in row_str and '銘柄コード・ティッカー' in row_str) or \
-               ('種別' in row_str and '銘柄' in row_str and '保有数量' in row_str) or \
-               ('銘柄コード・ティッカー' in row_str and '保有数量' in row_str) or \
-               ('銘柄コード・ティッカー' in row_str and '平均取得価額' in row_str) or \
-               ('銘柄コード' in row_str and '銘柄名' in row_str and '保有数量' in row_str) or \
-               ('銘柄コード' in row_str and '平均取得価額' in row_str):
+            # ヘッダー行を検出（新形式に対応）
+            # 楽天証券の新しい形式: 銘柄コード,銘柄名,保有数量［株］,執行中［株］,...
+            if ('銘柄コード' in row_str and '銘柄名' in row_str and '保有数量' in row_str) or \
+               ('銘柄コード' in row_str and '平均取得価額' in row_str) or \
+               ('種別' in row_str and '銘柄コード・ティッカー' in row_str) or \
+               ('銘柄コード・ティッカー' in row_str and '保有数量' in row_str):
                 data_start_idx = idx
                 logger.info(f"ヘッダー行を検出: 行 {idx}")
+                logger.info(f"ヘッダー内容: {row_str[:200]}...")
                 break
         
         if data_start_idx is not None:
@@ -168,19 +180,47 @@ class UnifiedCSVParser:
             
             df.columns = new_columns
             df = df.iloc[data_start_idx + 1:].reset_index(drop=True)
-            logger.info(f"データ行数: {len(df)}")
+            logger.info(f"ヘッダー設定後のデータ行数: {len(df)}")
             
-            # 株式のみを抽出（種別が「国内株式」「米国株式」の行）
+            # 空の行を除去
+            df = df.dropna(how='all')
+            logger.info(f"空行除去後のデータ行数: {len(df)}")
+            
+            # 銘柄コードが有効な行のみを抽出
+            symbol_column = None
+            for col in df.columns:
+                if '銘柄コード' in col:
+                    symbol_column = col
+                    break
+            
+            if symbol_column:
+                original_len = len(df)
+                # 銘柄コードが数字4桁のパターンを含む行のみ抽出
+                df = df[df[symbol_column].notna() & 
+                       df[symbol_column].astype(str).str.match(r'^"?\d{4}"?')]
+                logger.info(f"有効な銘柄データのみ抽出: {original_len}行 → {len(df)}行")
+                
+                # 最初の数行をデバッグ表示
+                if not df.empty:
+                    logger.info(f"抽出されたデータの最初の行:\n{df.iloc[0].to_dict()}")
+                    for i in range(min(3, len(df))):
+                        logger.info(f"データ行 {i}: {df.iloc[i][symbol_column]} | {df.iloc[i].get('銘柄名', 'N/A')}")
+            else:
+                logger.warning("銘柄コードカラムが見つかりません")
+                
+            # 株式のみを抽出（種別列がある場合）
             if '種別' in df.columns:
                 original_len = len(df)
                 df = df[df['種別'].isin(['国内株式', '米国株式'])]
                 logger.info(f"株式データのみ抽出: {original_len}行 → {len(df)}行")
-            
-            # データが見つかった場合の詳細ログ
-            if not df.empty:
-                logger.info(f"抽出されたデータの最初の行:\n{df.iloc[0].to_dict()}")
+                
         else:
             logger.error("楽天証券CSVでヘッダー行が見つかりませんでした")
+            logger.error("検索したパターン:")
+            logger.error("- '銘柄コード' + '銘柄名' + '保有数量'")
+            logger.error("- '銘柄コード' + '平均取得価額'")
+            logger.error("- '種別' + '銘柄コード・ティッカー'")
+            logger.error("- '銘柄コード・ティッカー' + '保有数量'")
         
         return df
     
@@ -275,10 +315,10 @@ class UnifiedCSVParser:
                     logger.error(f"行 {idx}: 'average_price'カラムが見つかりません。利用可能なカラム: {row.index.tolist()}")
                     continue
                 
-                # 基本的なデータ型変換
-                symbol = str(row['symbol']).strip()
-                quantity = pd.to_numeric(row['quantity'], errors='coerce')
-                average_price = pd.to_numeric(row['average_price'], errors='coerce')
+                # 基本的なデータ型変換（引用符を除去）
+                symbol = str(row['symbol']).strip().strip('"\'')
+                quantity = pd.to_numeric(str(row['quantity']).strip('"\''), errors='coerce')
+                average_price = pd.to_numeric(str(row['average_price']).strip('"\''), errors='coerce')
                 
                 logger.info(f"行 {idx}: symbol={symbol}, quantity={quantity}, average_price={average_price}")
                 
