@@ -443,3 +443,101 @@ class FinancialDataProcessor:
             'total_warnings': total_warnings,
             'warning_rate': symbols_with_warnings / total_symbols if total_symbols > 0 else 0
         }
+    
+    def validate_portfolio_data(self, portfolio_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        ポートフォリオデータ（CSV由来）の検証と正規化
+        
+        Args:
+            portfolio_data: CSVから読み込んだポートフォリオデータ
+            
+        Returns:
+            Dict[str, Any]: 検証・正規化済みのポートフォリオデータ
+        """
+        warnings = []
+        
+        # 銘柄コード
+        symbol = str(portfolio_data.get('symbol', '')).strip()
+        
+        # 保有数量の検証
+        quantity = float(portfolio_data.get('quantity', 0))
+        if quantity <= 0:
+            warnings.append({
+                'level': WarningLevel.CRITICAL,
+                'field': 'quantity',
+                'message': f"無効な保有数量: {quantity}",
+                'original_value': quantity,
+                'corrected_value': None
+            })
+            quantity = 0
+        elif quantity > 1000000:  # 100万株以上は異常値の可能性
+            warnings.append({
+                'level': WarningLevel.WARNING,
+                'field': 'quantity',
+                'message': f"非常に大きな保有数量: {quantity:,.0f}株",
+                'original_value': quantity,
+                'corrected_value': quantity
+            })
+        
+        # 平均取得価格の検証
+        average_price = float(portfolio_data.get('average_price', 0))
+        if average_price <= 0:
+            warnings.append({
+                'level': WarningLevel.CRITICAL,
+                'field': 'average_price',
+                'message': f"無効な平均取得価格: {average_price}",
+                'original_value': average_price,
+                'corrected_value': None
+            })
+            average_price = 0
+        elif average_price > 1000000:  # 100万円以上は異常値の可能性
+            warnings.append({
+                'level': WarningLevel.WARNING,
+                'field': 'average_price',
+                'message': f"非常に高い平均取得価格: ¥{average_price:,.0f}",
+                'original_value': average_price,
+                'corrected_value': average_price
+            })
+        
+        # 現在価格の検証（オプション）
+        current_price = portfolio_data.get('current_price')
+        if current_price is not None:
+            current_price = float(current_price)
+            if current_price <= 0:
+                warnings.append({
+                    'level': WarningLevel.WARNING,
+                    'field': 'current_price',
+                    'message': f"無効な現在価格: {current_price}",
+                    'original_value': current_price,
+                    'corrected_value': None
+                })
+                current_price = None
+        
+        # 評価額の整合性チェック（オプション）
+        market_value = portfolio_data.get('market_value')
+        if market_value is not None and current_price is not None and quantity > 0:
+            market_value = float(market_value)
+            expected_value = current_price * quantity
+            
+            # 10%以上の乖離は警告
+            if abs(market_value - expected_value) / expected_value > 0.1:
+                warnings.append({
+                    'level': WarningLevel.WARNING,
+                    'field': 'market_value',
+                    'message': f"評価額の不整合: 記載 ¥{market_value:,.0f} vs 計算値 ¥{expected_value:,.0f}",
+                    'original_value': market_value,
+                    'corrected_value': expected_value
+                })
+        
+        # 検証済みデータを返す
+        return {
+            'symbol': symbol,
+            'name': portfolio_data.get('name', ''),
+            'quantity': quantity,
+            'average_price': average_price,
+            'current_price': current_price,
+            'market_value': market_value,
+            'warnings': warnings,
+            'data_source': 'csv',
+            'processed_at': datetime.now()
+        }

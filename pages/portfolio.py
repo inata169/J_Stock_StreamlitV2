@@ -18,6 +18,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from core.csv_parser import UnifiedCSVParser
+
 from core.multi_data_source import MultiDataSourceManager, DataFetchError, APIRateLimitError
 from core.chart_data_manager import ChartDataManager
 from core.financial_data_processor import WarningLevel
@@ -80,18 +82,25 @@ def render_csv_upload_section():
     
     if uploaded_file is not None:
         try:
-            # ファイル読み込み
+            # ファイル読み込み（統一CSVパーサーを使用）
             with st.spinner("📊 CSVファイルを解析中..."):
-                df = parse_csv_file(uploaded_file)
+                csv_parser = UnifiedCSVParser()
+                df = csv_parser.parse_csv(uploaded_file.read(), uploaded_file.name)
                 
                 if not df.empty:
                     st.session_state.portfolio_data = df
                     st.session_state.csv_loaded = True
                     st.success(f"✅ CSVファイルを読み込みました ({len(df)}銘柄)")
                     
+                    # 警告情報の表示
+                    warnings_count = sum(len(row.get('warnings', [])) for _, row in df.iterrows() if 'warnings' in row)
+                    if warnings_count > 0:
+                        st.warning(f"⚠️ {warnings_count}件のデータ警告があります")
+                    
                     # プレビュー表示
                     with st.expander("📋 読み込み内容プレビュー"):
-                        st.dataframe(df.head(), use_container_width=True)
+                        display_df = df[['symbol', 'name', 'quantity', 'average_price']].copy()
+                        st.dataframe(display_df.head(), use_container_width=True)
                 else:
                     st.error("❌ CSVファイルの解析に失敗しました")
                     
@@ -112,6 +121,7 @@ def parse_csv_file(uploaded_file) -> pd.DataFrame:
         # 複数のエンコーディングを試行
         encodings = ['utf-8', 'shift_jis', 'cp932', 'utf-8-sig']
         
+        df = None
         for encoding in encodings:
             try:
                 uploaded_file.seek(0)
@@ -120,14 +130,43 @@ def parse_csv_file(uploaded_file) -> pd.DataFrame:
                 df = pd.read_csv(io.StringIO(content), 
                                 on_bad_lines='skip',  # 不正な行をスキップ
                                 engine='python')      # より柔軟なパーサーを使用
+                
+                # デバッグ情報を出力
+                logger.info(f"CSV successfully decoded with {encoding}")
+                logger.info(f"Original columns: {df.columns.tolist()}")
+                logger.info(f"Shape: {df.shape}")
+                logger.info(f"First few rows:\n{df.head()}")
                 break
             except UnicodeDecodeError:
                 continue
         else:
             raise ValueError("サポートされていないファイルエンコーディングです")
         
+        # 空のDataFrameや無効なデータをスキップ
+        if df is None or df.empty:
+            raise ValueError("CSVファイルが空か、有効なデータが含まれていません")
+        
+        # ヘッダー行が含まれている可能性をチェック（楽天証券のケース）
+        # 楽天証券のCSVは最初の数行にヘッダー情報があり、実際のデータは後ろにある
+        if '保有商品詳細' in str(df.values) or '資産合計' in str(df.values):
+            # 楽天証券形式の検出
+            logger.info("楽天証券形式のCSVを検出")
+            # データ行を探す
+            data_start_idx = None
+            for idx, row in df.iterrows():
+                if any('銘柄コード' in str(cell) or '銘柄コード・ティッカー' in str(cell) for cell in row):
+                    data_start_idx = idx
+                    break
+            
+            if data_start_idx is not None:
+                # ヘッダー行を新しいカラム名として設定
+                df.columns = df.iloc[data_start_idx]
+                df = df.iloc[data_start_idx + 1:].reset_index(drop=True)
+                logger.info(f"楽天証券: データ開始行 {data_start_idx}, 新しいカラム: {df.columns.tolist()}")
+        
         # カラム名の正規化
         df = normalize_csv_columns(df)
+        logger.info(f"Normalized columns: {df.columns.tolist()}")
         
         # 必要なカラムの存在確認
         required_columns = ['symbol', 'quantity', 'average_price']
@@ -135,7 +174,17 @@ def parse_csv_file(uploaded_file) -> pd.DataFrame:
         
         if missing_columns:
             st.warning(f"⚠️ 一部のカラムが見つかりません: {missing_columns}")
-            st.info("カスタムCSVの場合は、'銘柄コード', '数量', '平均取得価格'の列が必要です")
+            st.info("検出されたカラム: " + ", ".join(df.columns.tolist()[:10]))  # 最初の10カラムを表示
+            st.info("必要なカラム: '銘柄コード'(SBI証券) または '銘柄コード・ティッカー'(楽天証券), '保有数量'/'保有株数', '取得単価'/'平均取得価額'")
+            
+            # より詳細なデバッグ情報
+            with st.expander("詳細なデバッグ情報"):
+                st.text("全カラム名:")
+                st.text(str(df.columns.tolist()))
+                st.text("\n最初の5行:")
+                st.dataframe(df.head())
+            
+            raise KeyError(missing_columns)
         
         # データ型変換
         if 'quantity' in df.columns:
@@ -146,10 +195,16 @@ def parse_csv_file(uploaded_file) -> pd.DataFrame:
         # 無効行の除去
         df = df.dropna(subset=['symbol'])
         
+        # 銘柄コードの正規化（4桁の数字の場合は.Tを追加）
+        df['symbol'] = df['symbol'].apply(lambda x: str(x) + '.T' if isinstance(x, (int, float)) or (isinstance(x, str) and x.isdigit() and len(x) == 4) else str(x))
+        
+        logger.info(f"Successfully parsed {len(df)} rows")
         return df
         
     except Exception as e:
         logger.error(f"CSV parsing error: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error details: {str(e)}")
         raise
 
 
@@ -157,23 +212,29 @@ def normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     """CSVカラム名の正規化"""
     # SBI証券・楽天証券の一般的なカラム名マッピング
     column_mapping = {
-        # SBI証券
+        # SBI証券（SaveFile 5.csv形式）
         '銘柄コード': 'symbol',
         '銘柄': 'symbol', 
         '保有数量': 'quantity',
+        '保有株数': 'quantity',  # SBI証券でも使用
         '数量': 'quantity',
         '平均取得価格': 'average_price',
         '取得価格': 'average_price',
+        '取得単価': 'average_price',  # SBI証券で使用
         '評価額': 'market_value',
         '現在価格': 'current_price',
+        '現在値': 'current_price',  # SBI証券でも使用
+        '銘柄名称': 'name',  # SBI証券で使用
         
-        # 楽天証券
+        # 楽天証券（assetbalance形式）
+        '銘柄コード・ティッカー': 'symbol',  # 楽天証券特有
         'コード': 'symbol',
         '銘柄名': 'name',
-        '保有株数': 'quantity',
+        '平均取得価額': 'average_price',  # 楽天証券特有（価額）
         '平均取得単価': 'average_price',
         '評価金額': 'market_value',
-        '現在値': 'current_price',
+        '時価評価額[円]': 'market_value',  # 楽天証券特有
+        '［単位］': None,  # 不要なカラムは削除
         
         # 英語
         'Symbol': 'symbol',
@@ -188,6 +249,9 @@ def normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     
     # カラム名を正規化
     df = df.rename(columns=column_mapping)
+    
+    # Noneにマップされたカラムを削除
+    df = df.drop(columns=[col for col in df.columns if col is None], errors='ignore')
     
     return df
 
