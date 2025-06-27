@@ -12,7 +12,7 @@ import sys
 import os
 
 # v2.0.0データベース初期化
-from core.database_init import initialize_database
+from core.database_init import initialize_stock_database
 
 # ページのインポート
 from pages import strategy, charts, portfolio, watchlist
@@ -69,9 +69,12 @@ def initialize_session_state():
     # v2.0.0: データベース初期化（初回のみ）
     if 'database_initialized' not in st.session_state:
         try:
-            initialize_database()
-            st.session_state.database_initialized = True
-            logger.info("Database initialized successfully")
+            success = initialize_stock_database()
+            st.session_state.database_initialized = success
+            if success:
+                logger.info("Database initialized successfully")
+            else:
+                logger.error("Database initialization failed")
         except Exception as e:
             logger.error(f"Database initialization error: {e}")
             st.session_state.database_initialized = False

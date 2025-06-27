@@ -348,10 +348,15 @@ class DatabaseInitializer:
             return {"error": str(e)}
 
 
-def initialize_stock_database(db_path: str = "stock_watchdog.db") -> bool:
+# メイン関数群
+def initialize_database(db_path: str = "stock_watchdog.db") -> bool:
     """データベース初期化のメイン関数"""
     initializer = DatabaseInitializer(db_path)
     return initializer.initialize_database()
+
+def initialize_stock_database(db_path: str = "stock_watchdog.db") -> bool:
+    """データベース初期化のメイン関数（互換性のため）"""
+    return initialize_database(db_path)
 
 
 def check_db_health(db_path: str = "stock_watchdog.db") -> dict:
@@ -365,7 +370,7 @@ if __name__ == "__main__":
     print("=== データベース初期化テスト ===")
     
     # 初期化実行
-    result = initialize_stock_database("test_stock_watchdog.db")
+    result = initialize_database("test_stock_watchdog.db")
     if result:
         print("✅ データベース初期化成功")
         
