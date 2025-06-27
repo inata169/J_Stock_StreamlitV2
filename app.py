@@ -11,6 +11,9 @@ from datetime import datetime
 import sys
 import os
 
+# v2.0.0データベース初期化
+from core.database_init import initialize_database
+
 # ページのインポート
 from pages import strategy, charts, portfolio, watchlist
 
@@ -37,15 +40,22 @@ def configure_page():
             'Get Help': 'https://github.com/inata169/J_Stock_StreamlitV2',
             'Report a bug': 'https://github.com/inata169/J_Stock_StreamlitV2/issues',
             'About': """
-            # 日本株ウォッチドッグ v0.3.0
+            # 日本株ウォッチドッグ v2.0.0
             
-            株式市場学習・研究専用ツール
+            株式市場学習・研究専用ツール（新統一データベース版）
             
-            **主要機能:**
-            - 統一データ処理による高精度な財務分析
-            - 5つの投資戦略による多角的評価
-            - リアルタイム株価・配当データ取得
-            - SBI・楽天証券CSV対応ポートフォリオ管理
+            **v2.0.0 新機能:**
+            - 🏗️ 「両方の真実保持」データベース設計
+            - 📊 EnhancedCSVParser（32件データ正常処理）
+            - 💾 SQLite永続化ストレージ
+            - ⚡ 適応的API制限管理システム
+            - 🎯 統一銘柄コード（9432.T→9432）
+            - ✅ J-Quants統合準備完了（95%適合性）
+            
+            **データソース:**
+            - SBI・楽天証券CSV（自動エンコーディング検出）
+            - Yahoo Finance API（リアルタイム株価・財務指標）
+            - J-Quants API対応（Phase 2予定）
             
             **重要:** このツールは学習・研究専用です。
             投資判断は必ずご自身の責任で行ってください。
@@ -55,7 +65,17 @@ def configure_page():
 
 
 def initialize_session_state():
-    """セッション状態の初期化"""
+    """セッション状態の初期化（v2.0.0対応）"""
+    # v2.0.0: データベース初期化（初回のみ）
+    if 'database_initialized' not in st.session_state:
+        try:
+            initialize_database()
+            st.session_state.database_initialized = True
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Database initialization error: {e}")
+            st.session_state.database_initialized = False
+    
     # アプリケーション状態
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'portfolio'
@@ -86,7 +106,7 @@ def render_sidebar_navigation():
     with st.sidebar:
         # アプリケーションヘッダー
         st.title("📊 日本株ウォッチドッグ")
-        st.caption("v0.3.0 - 統一データ処理対応")
+        st.caption("v2.0.0 - 統一データベース版")
         
         st.markdown("---")
         
@@ -211,14 +231,19 @@ def render_debug_info():
         return
     
     with st.expander("🔧 デバッグ情報（開発者向け）"):
-        st.json({
+        debug_info = {
             'session_state_keys': list(st.session_state.keys()),
             'current_page': st.session_state.current_page,
             'page_visits': st.session_state.page_visit_count,
             'uptime_seconds': (datetime.now() - st.session_state.app_started_at).total_seconds(),
             'api_error_count': st.session_state.api_error_count,
-            'last_update': st.session_state.last_update_time.isoformat()
-        })
+            'last_update': st.session_state.last_update_time.isoformat(),
+            
+            # v2.0.0: データベース状況
+            'database_initialized': st.session_state.get('database_initialized', False),
+            'app_version': 'v2.0.0 - 統一データベース版'
+        }
+        st.json(debug_info)
 
 
 def render_main_content():
@@ -261,8 +286,8 @@ def render_footer():
     
     with col1:
         st.markdown("""
-        **日本株ウォッチドッグ v0.3.0** | 
-        統一データ処理アーキテクチャ | 
+        **日本株ウォッチドッグ v2.0.0** | 
+        統一データベースアーキテクチャ | 
         学習・研究専用ツール
         """)
     

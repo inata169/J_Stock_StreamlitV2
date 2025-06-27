@@ -1,8 +1,10 @@
 """
-配当チャート画面
+配当チャート画面 v2.0.0
 
-統一プロセッサを経由した配当データを使用してインタラクティブチャートを生成。
-Plotlyを使用した高度な可視化機能を提供。
+統一データベースアーキテクチャ対応版
+- DatabaseManager: チャートデータキャッシュ（任意機能）
+- 統一プロセッサ経由の配当データを使用したインタラクティブチャート
+- Plotlyを使用した高度な可視化機能を提供
 """
 
 import streamlit as st
@@ -11,11 +13,12 @@ from typing import List, Dict, Any
 import logging
 from datetime import datetime
 
-# コアモジュールのインポート
+# v2.0.0 新アーキテクチャモジュール
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from core.database_manager import DatabaseManager
 from core.multi_data_source import MultiDataSourceManager, DataFetchError, APIRateLimitError
 from core.chart_data_manager import ChartDataManager
 from core.financial_data_processor import WarningLevel
@@ -25,7 +28,11 @@ logger = logging.getLogger(__name__)
 
 
 def initialize_charts_page():
-    """チャートページの初期化"""
+    """チャートページの初期化（v2.0.0対応）"""
+    # v2.0.0: データベースマネージャー追加（キャッシュ機能用）
+    if 'db_manager' not in st.session_state:
+        st.session_state.db_manager = DatabaseManager()
+    
     if 'data_source_manager' not in st.session_state:
         st.session_state.data_source_manager = MultiDataSourceManager()
     
@@ -40,10 +47,11 @@ def initialize_charts_page():
 
 
 def render_charts_header():
-    """ヘッダー部分のレンダリング"""
-    st.title("📈 金融チャート分析")
+    """ヘッダー部分のレンダリング（v2.0.0）"""
+    st.title("📈 金融チャート分析 v2.0.0")
     st.markdown("""
-    **インタラクティブな金融データ可視化**
+    **統一データベースアーキテクチャ対応版**
+    - 💾 **データベースキャッシュ**: 高速チャート生成（任意機能）
     - 📊 **配当利回り比較**: 複数銘柄の配当利回りを横並び比較
     - 📈 **配当履歴**: 時系列での配当推移とトレンド分析
     - 🎯 **財務指標レーダー**: 多角的な財務健全性評価
