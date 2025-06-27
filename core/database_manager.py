@@ -193,25 +193,20 @@ class DatabaseManager:
             with self.transaction() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT OR REPLACE INTO stock_master 
-                    (symbol, long_name, short_name, sector, industry, exchange, 
-                     currency, current_price, previous_close, day_high, day_low,
-                     market_cap, shares_outstanding, last_updated)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    INSERT OR REPLACE INTO stocks 
+                    (symbol, name, market, sector, industry, currency, 
+                     current_price, previous_close, market_cap, last_updated)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """, (
                     symbol,
-                    stock_data.get('long_name', ''),
-                    stock_data.get('short_name', ''),
+                    stock_data.get('name', stock_data.get('long_name', '')),
+                    stock_data.get('market', stock_data.get('exchange', '')),
                     stock_data.get('sector', ''),
                     stock_data.get('industry', ''),
-                    stock_data.get('exchange', ''),
                     stock_data.get('currency', 'JPY'),
                     self.decimal_formatter.format_price(stock_data.get('current_price')),
                     self.decimal_formatter.format_price(stock_data.get('previous_close')),
-                    self.decimal_formatter.format_price(stock_data.get('day_high')),
-                    self.decimal_formatter.format_price(stock_data.get('day_low')),
-                    stock_data.get('market_cap'),
-                    stock_data.get('shares_outstanding')
+                    stock_data.get('market_cap')
                 ))
                 
                 logger.info(f"銘柄マスターデータ挿入: {symbol}")
@@ -229,9 +224,9 @@ class DatabaseManager:
                 
                 if symbol:
                     normalized_symbol = self.symbol_normalizer.normalize(symbol)
-                    cursor.execute("SELECT * FROM stock_master WHERE symbol = ?", (normalized_symbol,))
+                    cursor.execute("SELECT * FROM stocks WHERE symbol = ?", (normalized_symbol,))
                 else:
-                    cursor.execute("SELECT * FROM stock_master ORDER BY symbol")
+                    cursor.execute("SELECT * FROM stocks ORDER BY symbol")
                 
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
@@ -278,20 +273,18 @@ class DatabaseManager:
             with self.transaction() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT OR REPLACE INTO financial_metrics 
-                    (symbol, metric_date, yahoo_dividend_yield, yahoo_trailing_pe, 
-                     yahoo_price_to_book, yahoo_return_on_equity, yahoo_profit_margins,
-                     yahoo_operating_margins, yahoo_dividend_rate,
-                     display_dividend_yield, display_return_on_equity, display_profit_margins,
-                     last_updated)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    INSERT OR REPLACE INTO financial_indicators 
+                    (symbol, dividend_yield, pe_ratio, pb_ratio, roe, dividend_rate, 
+                     data_date, last_updated)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """, (
-                    normalized_symbol, metric_date,
-                    data['yahoo_dividend_yield'], data['yahoo_trailing_pe'],
-                    data['yahoo_price_to_book'], data['yahoo_return_on_equity'],
-                    data['yahoo_profit_margins'], data['yahoo_operating_margins'],
-                    data['yahoo_dividend_rate'], data['display_dividend_yield'],
-                    data['display_return_on_equity'], data['display_profit_margins']
+                    normalized_symbol, 
+                    metrics_data.get('dividendYield'),
+                    self.decimal_formatter.format_price(metrics_data.get('trailingPE')),
+                    self.decimal_formatter.format_price(metrics_data.get('priceToBook')),
+                    metrics_data.get('returnOnEquity'),
+                    self.decimal_formatter.format_price(metrics_data.get('dividendRate')),
+                    metric_date
                 ))
                 
                 logger.info(f"財務指標データ挿入: {normalized_symbol} ({metric_date})")
@@ -354,8 +347,8 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT setting_value FROM update_settings 
-                    WHERE setting_name = ?
+                    SELECT value FROM settings 
+                    WHERE key = ?
                 """, (setting_name,))
                 
                 row = cursor.fetchone()
@@ -373,8 +366,8 @@ class DatabaseManager:
             with self.transaction() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT OR REPLACE INTO update_settings 
-                    (setting_name, setting_value, updated_at)
+                    INSERT OR REPLACE INTO settings 
+                    (key, value, updated_at)
                     VALUES (?, ?, CURRENT_TIMESTAMP)
                 """, (setting_name, json.dumps(setting_value)))
                 
@@ -392,7 +385,7 @@ class DatabaseManager:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM portfolio_analytics ORDER BY symbol")
+                cursor.execute("SELECT * FROM portfolios ORDER BY symbol")
                 
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
