@@ -372,10 +372,21 @@ class UnifiedCSVParser:
         # カラム名を変換
         df = df.rename(columns=mapping)
         
-        # 不要なカラムを削除
+        # 必須カラムと任意カラムの定義
         required_columns = ['symbol', 'quantity', 'average_price']
-        optional_columns = ['name', 'current_price', 'market_value', 'profit_loss']
-        keep_columns = [col for col in required_columns + optional_columns if col in df.columns]
+        optional_columns = ['name', 'current_price', 'market_value', 'profit_loss', 'profit_loss_percent']
+        
+        # 存在するカラムのみを保持
+        keep_columns = []
+        for col in required_columns + optional_columns:
+            if col in df.columns:
+                keep_columns.append(col)
+        
+        # その他の有用なカラムも保持（データソース特有のカラム）
+        additional_columns = ['total_cost', 'pending_quantity', 'normal_quantity', 'investment_quantity']
+        for col in additional_columns:
+            if col in df.columns and col not in keep_columns:
+                keep_columns.append(col)
         
         df = df[keep_columns]
         

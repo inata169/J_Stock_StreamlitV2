@@ -285,7 +285,8 @@ def merge_database_and_realtime_data(portfolio_df: pd.DataFrame, current_data: D
         
         if yahoo_symbol in current_data:
             stock_data = current_data[yahoo_symbol]
-            current_price = float(stock_data['current_price']) if stock_data.get('current_price') else current_price
+            if stock_data.get('current_price') is not None:
+                current_price = float(stock_data['current_price'])
             
             # Yahoo Finance損益率を計算
             if current_price and row.get('average_price', 0) > 0:
@@ -311,8 +312,8 @@ def merge_database_and_realtime_data(portfolio_df: pd.DataFrame, current_data: D
             'profit_loss_rate_original': row.get('profit_loss_rate_original'),  # 生データ
             
             'advice': advice,
-            'dividend_yield': float(current_data.get(yahoo_symbol, {}).get('dividend_yield', 0)) if yahoo_symbol in current_data else None,
-            'pe_ratio': float(current_data.get(yahoo_symbol, {}).get('pe_ratio', 0)) if yahoo_symbol in current_data else None,
+            'dividend_yield': float(current_data.get(yahoo_symbol, {}).get('dividend_yield') or 0) if yahoo_symbol in current_data and current_data.get(yahoo_symbol, {}).get('dividend_yield') is not None else None,
+            'pe_ratio': float(current_data.get(yahoo_symbol, {}).get('pe_ratio') or 0) if yahoo_symbol in current_data and current_data.get(yahoo_symbol, {}).get('pe_ratio') is not None else None,
             'warnings': len(current_data.get(yahoo_symbol, {}).get('warnings', []))
         })
     
