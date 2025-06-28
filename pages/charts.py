@@ -192,13 +192,23 @@ def render_chart_display(chart_type: str, period: str = "5y"):
                 
             elif chart_type == 'dividend_history':
                 symbol = symbols[0]
+                # 銘柄名を取得
+                data_source = st.session_state.data_source_manager
+                stock_info = data_source.get_stock_info(symbol)
+                stock_name = stock_info.get('long_name', symbol) if stock_info else symbol
+                
                 fig = chart_manager.create_dividend_history_chart(symbol, period)
-                st.subheader(f"📈 {symbol} 配当履歴 ({period})")
+                st.subheader(f"📈 {symbol} ({stock_name}) 配当履歴 ({period})")
                 
             elif chart_type == 'financial_radar':
                 symbol = symbols[0]
+                # 銘柄名を取得
+                data_source = st.session_state.data_source_manager
+                stock_info = data_source.get_stock_info(symbol)
+                stock_name = stock_info.get('long_name', symbol) if stock_info else symbol
+                
                 fig = chart_manager.create_financial_metrics_radar(symbol)
-                st.subheader(f"🎯 {symbol} 財務指標レーダー")
+                st.subheader(f"🎯 {symbol} ({stock_name}) 財務指標レーダー")
             
             # チャート表示
             st.plotly_chart(fig, use_container_width=True)
@@ -252,6 +262,7 @@ def render_dividend_yield_table(symbols: List[str]):
             
             table_data.append({
                 '銘柄コード': symbol,
+                '銘柄名': data.get('long_name', symbol),
                 '配当利回り (%)': float(dividend_yield) if dividend_yield else None,
                 '株価 (円)': float(current_price) if current_price else None,
                 'PER (倍)': float(pe_ratio) if pe_ratio else None,

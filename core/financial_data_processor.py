@@ -34,6 +34,7 @@ class DataWarning(TypedDict):
 class ProcessedData(TypedDict):
     """正規化済みデータの型定義"""
     symbol: str
+    long_name: str  # 銘柄名を追加
     dividend_yield: Optional[Decimal]
     pe_ratio: Optional[Decimal]
     pb_ratio: Optional[Decimal]
@@ -122,6 +123,7 @@ class FinancialDataProcessor:
         # 結果作成
         result: ProcessedData = {
             'symbol': symbol,
+            'long_name': raw_data.get('longName', ''),  # 銘柄名を追加
             'dividend_yield': dividend_yield,
             'pe_ratio': pe_ratio,
             'pb_ratio': pb_ratio,

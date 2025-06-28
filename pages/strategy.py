@@ -182,7 +182,8 @@ def display_analysis_for_symbol(symbol: str):
     stock_data = result_data['stock_data']
     analysis = result_data['analysis']
     
-    st.subheader(f"📊 {symbol} 分析結果")
+    stock_name = stock_data.get('long_name', symbol)
+    st.subheader(f"📊 {symbol} ({stock_name}) 分析結果")
     
     # 基本情報表示
     render_basic_info(stock_data)

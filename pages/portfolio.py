@@ -302,9 +302,14 @@ def merge_database_and_realtime_data(portfolio_df: pd.DataFrame, current_data: D
         advice_rate = yahoo_profit_loss_rate if yahoo_profit_loss_rate is not None else db_profit_loss_rate
         advice = determine_investment_advice(advice_rate)
         
+        # Yahoo Financeから銘柄名を取得、なければデータベースから、それもなければシンボルを使用
+        stock_name = row.get('name', symbol)
+        if yahoo_symbol in current_data and current_data[yahoo_symbol].get('long_name'):
+            stock_name = current_data[yahoo_symbol]['long_name']
+        
         result_data.append({
             'symbol': symbol,
-            'name': row.get('name', symbol),
+            'name': stock_name,
             'data_source': row.get('data_source', 'unknown'),
             'quantity': row.get('quantity', 0),
             'average_price': row.get('average_price', 0),
@@ -437,7 +442,7 @@ def render_portfolio_table(portfolio_df: pd.DataFrame):
             return 'background-color: #fff3cd; color: #856404'
         return ''
     
-    styled_df = final_df.style.applymap(color_pnl, subset=['アドバイス'])
+    styled_df = final_df.style.map(color_pnl, subset=['アドバイス'])
     st.dataframe(styled_df, use_container_width=True)
     
     # v2.0.0: 「両方の真実」についての説明

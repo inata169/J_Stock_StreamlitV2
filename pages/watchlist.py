@@ -273,8 +273,12 @@ def render_watchlist_table():
         # 警告数
         warnings_count = len(stock_data.get('warnings', []))
         
+        # 銘柄名を取得
+        stock_name = stock_data.get('long_name', symbol)
+        
         table_data.append({
             'symbol': symbol,
+            'name': stock_name,
             'current_price': f"¥{current_price:,.0f}" if current_price else "N/A",
             'dividend_yield': f"{dividend_yield:.1f}%" if dividend_yield else "N/A",
             'pe_ratio': f"{pe_ratio:.1f}" if pe_ratio else "N/A",
@@ -293,6 +297,7 @@ def render_watchlist_table():
         # カラム名変更
         column_names = {
             'symbol': '銘柄コード',
+            'name': '銘柄名',
             'current_price': '現在価格',
             'dividend_yield': '配当利回り',
             'pe_ratio': 'PER',
@@ -309,7 +314,7 @@ def render_watchlist_table():
         
         # 削除ボタン付きで表示
         for i, row in display_df.iterrows():
-            cols = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5, 1, 1, 1])
+            cols = st.columns([1, 2, 1, 1, 1, 1, 1, 1.5, 1.5, 1, 1, 1])
             
             for j, (col_name, value) in enumerate(row.items()):
                 if col_name == 'アクション':
@@ -360,6 +365,7 @@ def render_investment_timing_analysis():
                 if '買い' in recommendation:
                     buy_candidates.append({
                         'symbol': symbol,
+                        'name': item.get('stock_data', {}).get('long_name', symbol),  # 銘柄名を追加
                         'score': analysis.get('overall_score', 0),
                         'strategy': best_strategy,
                         'recommendation': recommendation,
@@ -374,7 +380,7 @@ def render_investment_timing_analysis():
         st.success("💰 **投資推奨銘柄**")
         
         for i, candidate in enumerate(buy_candidates[:5]):  # トップ5表示
-            with st.expander(f"#{i+1} {candidate['symbol']} - {candidate['score']:.1f}点"):
+            with st.expander(f"#{i+1} {candidate['symbol']} ({candidate['name']}) - {candidate['score']:.1f}点"):
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -419,7 +425,8 @@ def render_individual_analysis(symbol: str):
         st.error(f"分析が未実行です: {symbol}")
         return
     
-    st.subheader(f"📊 {symbol} 詳細分析")
+    stock_name = item.get('stock_data', {}).get('long_name', symbol)
+    st.subheader(f"📊 {symbol} ({stock_name}) 詳細分析")
     
     # 戦略別スコア表示
     strategy_results = analysis.get('strategy_results', {})
