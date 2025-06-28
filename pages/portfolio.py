@@ -464,6 +464,7 @@ def generate_investment_advice(portfolio_df: pd.DataFrame):
         # 具体的なアドバイス
         profit_stocks = portfolio_df[portfolio_df['advice'] == '💰 利確検討']
         loss_stocks = portfolio_df[portfolio_df['advice'] == '🛑 損切検討']
+        hold_stocks = portfolio_df[portfolio_df['advice'] == '📊 継続保有']
         
         if not profit_stocks.empty:
             st.success("💰 **利確検討推奨銘柄**")
@@ -479,8 +480,15 @@ def generate_investment_advice(portfolio_df: pd.DataFrame):
                 rate_text = f"{yahoo_rate:+.1f}%" if yahoo_rate != 'N/A' else "N/A"
                 st.markdown(f"- **{stock['symbol']}** ({stock['name']}): {rate_text}")
         
-        if profit_stocks.empty and loss_stocks.empty:
-            st.info("📊 現在は売買推奨銘柄はありません。継続保有を推奨します。")
+        if not hold_stocks.empty:
+            st.info("📊 **継続保有推奨銘柄**")
+            for _, stock in hold_stocks.iterrows():
+                yahoo_rate = stock.get('yahoo_profit_loss_rate', 'N/A')
+                rate_text = f"{yahoo_rate:+.1f}%" if yahoo_rate != 'N/A' else "N/A"
+                st.markdown(f"- **{stock['symbol']}** ({stock['name']}): {rate_text}")
+        
+        if profit_stocks.empty and loss_stocks.empty and hold_stocks.empty:
+            st.info("📊 現在は分析対象銘柄がありません。")
     
     with col2:
         # アドバイス分布

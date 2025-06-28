@@ -104,31 +104,22 @@ class DatabaseInitializer:
             
             # 3. 財務指標テーブル
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS financial_metrics (
+                CREATE TABLE IF NOT EXISTS financial_indicators (
                     symbol TEXT,
-                    metric_date DATE,
+                    data_date DATE,
                     
                     -- Yahoo Finance 原始値（小数形式）
-                    yahoo_dividend_yield REAL,           -- 配当利回り（0.0500形式）
-                    yahoo_trailing_pe REAL,              -- 実績PER（15.5倍）
-                    yahoo_price_to_book REAL,            -- PBR（1.2倍）
-                    yahoo_return_on_equity REAL,         -- ROE（0.1500形式）
-                    yahoo_profit_margins REAL,           -- 純利益率（0.1000形式）
-                    yahoo_operating_margins REAL,        -- 営業利益率
-                    yahoo_dividend_rate REAL,            -- 年間配当額（円）
-                    
-                    -- 表示用変換値（%形式）
-                    display_dividend_yield REAL,         -- 5.0%
-                    display_return_on_equity REAL,       -- 15.0%
-                    display_profit_margins REAL,         -- 10.0%
-                    
-                    -- 組み合わせ算出指標
-                    portfolio_dividend_yield REAL,       -- ポートフォリオ配当利回り
-                    per_weighted_avg REAL,               -- PER加重平均
+                    dividend_yield REAL,                 -- 配当利回り（0.0500形式）
+                    pe_ratio REAL,                       -- 実績PER（15.5倍）
+                    pb_ratio REAL,                       -- PBR（1.2倍）
+                    roe REAL,                            -- ROE（0.1500形式）
+                    profit_margins REAL,                 -- 純利益率（0.1000形式）
+                    operating_margins REAL,              -- 営業利益率
+                    dividend_rate REAL,                  -- 年間配当額（円）
                     
                     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
                     
-                    PRIMARY KEY (symbol, metric_date),
+                    PRIMARY KEY (symbol, data_date),
                     FOREIGN KEY (symbol) REFERENCES stock_master(symbol)
                 )
             """)
@@ -177,7 +168,7 @@ class DatabaseInitializer:
                 "CREATE INDEX IF NOT EXISTS idx_portfolios_symbol ON portfolios(symbol)",
                 "CREATE INDEX IF NOT EXISTS idx_portfolios_updated ON portfolios(last_updated)",
                 "CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp ON api_usage_log(request_timestamp)",
-                "CREATE INDEX IF NOT EXISTS idx_financial_metrics_date ON financial_metrics(metric_date)",
+                "CREATE INDEX IF NOT EXISTS idx_financial_indicators_date ON financial_indicators(data_date)",
                 "CREATE INDEX IF NOT EXISTS idx_api_usage_api_name ON api_usage_log(api_name)"
             ]
             
@@ -255,12 +246,12 @@ class DatabaseInitializer:
                     p.profit_loss_rate_decimal AS decimal_profit_loss,
                     
                     -- Yahoo Finance指標
-                    fm.display_dividend_yield,
-                    fm.yahoo_trailing_pe,
-                    fm.display_return_on_equity,
+                    fm.dividend_yield,
+                    fm.pe_ratio,
+                    fm.roe,
                     
                     -- 組み合わせ指標
-                    ROUND(p.quantity * fm.yahoo_dividend_rate, 1) AS annual_dividend_income,
+                    ROUND(p.quantity * fm.dividend_rate, 1) AS annual_dividend_income,
                     ROUND(p.market_value / sm.market_cap * 100, 4) AS ownership_percentage,
                     
                     p.data_source,
@@ -268,8 +259,8 @@ class DatabaseInitializer:
 
                 FROM portfolios p
                 LEFT JOIN stock_master sm ON p.symbol = sm.symbol
-                LEFT JOIN financial_metrics fm ON p.symbol = fm.symbol 
-                    AND fm.metric_date = DATE('now')
+                LEFT JOIN financial_indicators fm ON p.symbol = fm.symbol 
+                    AND fm.data_date = DATE('now')
             """)
             
             self.connection.commit()

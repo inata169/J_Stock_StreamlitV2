@@ -9,6 +9,7 @@
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 from typing import List, Dict, Any
 import logging
 from datetime import datetime
@@ -305,11 +306,11 @@ def render_financial_metrics_table(symbol: str):
         stock_data = data_source.get_stock_info(symbol)
         
         metrics_data = [
-            {'指標': '配当利回り (%)', '値': float(stock_data['dividend_yield']) if stock_data.get('dividend_yield') else 'N/A'},
-            {'指標': 'PER (倍)', '値': float(stock_data['pe_ratio']) if stock_data.get('pe_ratio') else 'N/A'},
-            {'指標': 'PBR (倍)', '値': float(stock_data['pb_ratio']) if stock_data.get('pb_ratio') else 'N/A'},
-            {'指標': 'ROE (%)', '値': float(stock_data['roe']) if stock_data.get('roe') else 'N/A'},
-            {'指標': '現在価格 (円)', '値': float(stock_data['current_price']) if stock_data.get('current_price') else 'N/A'},
+            {'指標': '配当利回り (%)', '値': float(stock_data['dividend_yield']) if stock_data.get('dividend_yield') else None},
+            {'指標': 'PER (倍)', '値': float(stock_data['pe_ratio']) if stock_data.get('pe_ratio') else None},
+            {'指標': 'PBR (倍)', '値': float(stock_data['pb_ratio']) if stock_data.get('pb_ratio') else None},
+            {'指標': 'ROE (%)', '値': float(stock_data['roe']) if stock_data.get('roe') else None},
+            {'指標': '現在価格 (円)', '値': float(stock_data['current_price']) if stock_data.get('current_price') else None},
         ]
         
         df = pd.DataFrame(metrics_data)

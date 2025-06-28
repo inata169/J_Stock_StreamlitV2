@@ -6,6 +6,7 @@ FinancialDataProcessorに渡して正規化する。
 """
 
 import yfinance as yf
+import pandas as pd
 import logging
 import time
 from typing import Dict, Any, Optional, List
@@ -246,7 +247,14 @@ class MultiDataSourceManager:
             if period != "max":
                 years = int(period.replace("y", ""))
                 start_date = datetime.now() - timedelta(days=years * 365)
-                dividends = dividends[dividends.index >= start_date]
+                # タイムゾーンを考慮した比較
+                if dividends.index.tz is not None:
+                    # インデックスがタイムゾーン対応の場合
+                    start_date = pd.Timestamp(start_date).tz_localize('UTC').tz_convert(dividends.index.tz)
+                    dividends = dividends[dividends.index >= start_date]
+                else:
+                    # インデックスがタイムゾーン非対応の場合
+                    dividends = dividends[dividends.index >= start_date]
             
             return {
                 'symbol': symbol,

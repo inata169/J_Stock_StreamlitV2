@@ -217,14 +217,15 @@ class DatabaseManager:
             with self.transaction() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT OR REPLACE INTO stocks 
-                    (symbol, name, market, sector, industry, currency, 
+                    INSERT OR REPLACE INTO stock_master 
+                    (symbol, long_name, short_name, exchange, sector, industry, currency, 
                      current_price, previous_close, market_cap, last_updated)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """, (
                     symbol,
-                    stock_data.get('name', stock_data.get('long_name', '')),
-                    stock_data.get('market', stock_data.get('exchange', '')),
+                    stock_data.get('long_name', stock_data.get('name', '')),
+                    stock_data.get('short_name', ''),
+                    stock_data.get('exchange', stock_data.get('market', '')),
                     stock_data.get('sector', ''),
                     stock_data.get('industry', ''),
                     stock_data.get('currency', 'JPY'),
@@ -248,9 +249,9 @@ class DatabaseManager:
                 
                 if symbol:
                     normalized_symbol = self.symbol_normalizer.normalize(symbol)
-                    cursor.execute("SELECT * FROM stocks WHERE symbol = ?", (normalized_symbol,))
+                    cursor.execute("SELECT * FROM stock_master WHERE symbol = ?", (normalized_symbol,))
                 else:
-                    cursor.execute("SELECT * FROM stocks ORDER BY symbol")
+                    cursor.execute("SELECT * FROM stock_master ORDER BY symbol")
                 
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
@@ -371,8 +372,8 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT value FROM settings 
-                    WHERE key = ?
+                    SELECT setting_value FROM update_settings 
+                    WHERE setting_name = ?
                 """, (setting_name,))
                 
                 row = cursor.fetchone()
@@ -390,8 +391,8 @@ class DatabaseManager:
             with self.transaction() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT OR REPLACE INTO settings 
-                    (key, value, updated_at)
+                    INSERT OR REPLACE INTO update_settings 
+                    (setting_name, setting_value, updated_at)
                     VALUES (?, ?, CURRENT_TIMESTAMP)
                 """, (setting_name, json.dumps(setting_value, cls=DecimalJSONEncoder)))
                 
