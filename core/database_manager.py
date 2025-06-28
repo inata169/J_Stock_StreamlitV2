@@ -7,6 +7,7 @@ import sqlite3
 import logging
 import json
 from datetime import datetime, date
+from decimal import Decimal
 from typing import List, Dict, Optional, Tuple, Any
 from contextlib import contextmanager
 try:
@@ -18,6 +19,14 @@ except ImportError:
     from symbol_utils import SymbolNormalizer, DecimalFormatter
 
 logger = logging.getLogger(__name__)
+
+
+class DecimalJSONEncoder(json.JSONEncoder):
+    """Decimal型をJSONシリアライズ可能にするエンコーダー"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 
 class DatabaseManager:
@@ -180,6 +189,21 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"ポートフォリオデータ削除エラー: {e}")
             return False
+    
+    def clear_all_portfolio_data(self) -> int:
+        """全ポートフォリオデータをクリア"""
+        try:
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM portfolios")
+                
+                deleted_count = cursor.rowcount
+                logger.info(f"全ポートフォリオデータクリア: {deleted_count}件")
+                return deleted_count
+                
+        except Exception as e:
+            logger.error(f"ポートフォリオデータクリアエラー: {e}")
+            return 0
     
     # ===== 銘柄マスターデータ管理 =====
     
@@ -369,7 +393,7 @@ class DatabaseManager:
                     INSERT OR REPLACE INTO settings 
                     (key, value, updated_at)
                     VALUES (?, ?, CURRENT_TIMESTAMP)
-                """, (setting_name, json.dumps(setting_value)))
+                """, (setting_name, json.dumps(setting_value, cls=DecimalJSONEncoder)))
                 
                 logger.info(f"設定更新: {setting_name}")
                 return True

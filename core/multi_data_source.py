@@ -14,6 +14,7 @@ import requests
 from requests.exceptions import RequestException, Timeout
 
 from .financial_data_processor import FinancialDataProcessor, ProcessedData
+from .symbol_utils import SymbolNormalizer
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -168,8 +169,15 @@ class MultiDataSourceManager:
             Dict[str, Any]: 生データ
         """
         try:
+            # 日本株の場合は.T形式に変換
+            if SymbolNormalizer.validate_japanese_stock(symbol):
+                yahoo_symbol = SymbolNormalizer.to_yahoo_format(symbol)
+                logger.info(f"Converting symbol: {symbol} → {yahoo_symbol}")
+            else:
+                yahoo_symbol = symbol
+            
             # タイムアウト設定でTickerオブジェクト作成
-            ticker = yf.Ticker(symbol)
+            ticker = yf.Ticker(yahoo_symbol)
             
             # infoデータ取得（タイムアウト付き）
             info = ticker.info
@@ -221,7 +229,13 @@ class MultiDataSourceManager:
             Optional[Dict[str, Any]]: 配当履歴データ
         """
         try:
-            ticker = yf.Ticker(symbol)
+            # 日本株の場合は.T形式に変換
+            if SymbolNormalizer.validate_japanese_stock(symbol):
+                yahoo_symbol = SymbolNormalizer.to_yahoo_format(symbol)
+            else:
+                yahoo_symbol = symbol
+                
+            ticker = yf.Ticker(yahoo_symbol)
             dividends = ticker.dividends
             
             if dividends.empty:
@@ -265,7 +279,13 @@ class MultiDataSourceManager:
             Optional[Dict[str, Any]]: 株価履歴データ
         """
         try:
-            ticker = yf.Ticker(symbol)
+            # 日本株の場合は.T形式に変換
+            if SymbolNormalizer.validate_japanese_stock(symbol):
+                yahoo_symbol = SymbolNormalizer.to_yahoo_format(symbol)
+            else:
+                yahoo_symbol = symbol
+                
+            ticker = yf.Ticker(yahoo_symbol)
             history = ticker.history(period=period, interval=interval)
             
             if history.empty:

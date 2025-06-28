@@ -77,8 +77,8 @@ def render_symbol_input_section():
         symbol_input = st.text_input(
             "銘柄コードを入力",
             value="",
-            placeholder="例: 1928.T (積水ハウス), 7203.T (トヨタ), AAPL (Apple)",
-            help="日本株: 4桁コード.T、米国株: ティッカーシンボル"
+            placeholder="例: 1928 (積水ハウス), 7203 (トヨタ), AAPL (Apple)",
+            help="日本株: 4桁コード（.T不要）、米国株: ティッカーシンボル"
         )
     
     with col2:
@@ -215,7 +215,7 @@ def render_basic_info(stock_data):
         dividend_yield = stock_data.get('dividend_yield')
         st.metric(
             "配当利回り",
-            f"{float(dividend_yield):.2f}%" if dividend_yield else "N/A"
+            f"{float(dividend_yield):.1f}%" if dividend_yield else "N/A"
         )
     
     with col3:

@@ -146,8 +146,13 @@ def render_database_status():
             st.metric("最終更新", st.session_state.portfolio_last_updated.strftime("%H:%M:%S"))
         with col3:
             if st.button("🗑️ データベースクリア"):
-                clear_portfolio_database()
-                st.success("データベースをクリアしました")
+                # 確認ダイアログの代わりに、削除結果を表示
+                deleted_count = clear_portfolio_database()
+                if deleted_count > 0:
+                    st.success(f"✅ データベースをクリアしました（{deleted_count}件削除）")
+                    st.session_state.portfolio_last_updated = datetime.now()
+                else:
+                    st.info("📭 データベースは既に空です")
                 st.rerun()
                 
     except Exception as e:
@@ -225,7 +230,8 @@ def insert_sample_data_to_database():
 def clear_portfolio_database():
     """ポートフォリオデータベースをクリア"""
     db_manager = st.session_state.db_manager
-    # 実装注：実際のクリア機能はdatabase_manager.pyに追加する必要がある
+    deleted_count = db_manager.clear_all_portfolio_data()
+    return deleted_count
 
 
 def render_portfolio_overview():
@@ -397,10 +403,15 @@ def render_portfolio_table(portfolio_df: pd.DataFrame):
     
     display_df['損益率(両表示)'] = display_df.apply(format_profit_loss_rates, axis=1)
     
+    # 配当利回りフォーマット
+    display_df['配当利回り'] = display_df['dividend_yield'].apply(
+        lambda x: f"{x:.1f}%" if x is not None and x > 0 else "N/A"
+    )
+    
     # 表示カラム選択
     display_columns = [
         'symbol', 'name', 'data_source', 'quantity', '平均取得価格', '現在価格', 
-        '評価額', '損益率(両表示)', 'advice', 'dividend_yield'
+        '評価額', '損益率(両表示)', 'advice', '配当利回り'
     ]
     
     # カラム名マッピング
@@ -409,8 +420,7 @@ def render_portfolio_table(portfolio_df: pd.DataFrame):
         'name': '銘柄名',
         'data_source': 'データソース',
         'quantity': '数量',
-        'advice': 'アドバイス',
-        'dividend_yield': '配当利回り(%)'
+        'advice': 'アドバイス'
     }
     
     final_df = display_df[display_columns].rename(columns=column_names)
@@ -510,14 +520,23 @@ def render_portfolio_sidebar():
             # CSVエクスポート（データベースから）
             if st.button("📄 DBからCSVエクスポート", use_container_width=True):
                 try:
-                    csv = portfolio_df.to_csv(index=False)
-                    
-                    st.download_button(
-                        label="📥 CSVダウンロード",
-                        data=csv,
-                        file_name=f"portfolio_v2_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv"
-                    )
+                    if portfolio_df.empty:
+                        st.warning("⚠️ エクスポートするデータがありません")
+                    else:
+                        csv = portfolio_df.to_csv(index=False)
+                        
+                        # ファイルサイズ情報
+                        file_size = len(csv.encode())
+                        file_size_kb = file_size / 1024
+                        
+                        st.success(f"✅ CSVファイル準備完了（{len(portfolio_df)}銘柄, {file_size_kb:.1f}KB）")
+                        
+                        st.download_button(
+                            label="📥 CSVファイルをダウンロード",
+                            data=csv,
+                            file_name=f"portfolio_v2_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            mime="text/csv"
+                        )
                 except Exception as e:
                     st.error(f"エクスポートエラー: {e}")
 

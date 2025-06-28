@@ -316,8 +316,8 @@ def main():
         # メインコンテンツ
         render_main_content()
         
-        # デバッグ情報
-        render_debug_info()
+        # デバッグ情報（本番環境では無効化）
+        # render_debug_info()
         
         # フッター
         render_footer()

@@ -276,7 +276,7 @@ def render_watchlist_table():
         table_data.append({
             'symbol': symbol,
             'current_price': f"¥{current_price:,.0f}" if current_price else "N/A",
-            'dividend_yield': f"{dividend_yield:.2f}%" if dividend_yield else "N/A",
+            'dividend_yield': f"{dividend_yield:.1f}%" if dividend_yield else "N/A",
             'pe_ratio': f"{pe_ratio:.1f}" if pe_ratio else "N/A",
             'pb_ratio': f"{pb_ratio:.2f}" if pb_ratio else "N/A",
             'overall_score': f"{overall_score:.1f}",

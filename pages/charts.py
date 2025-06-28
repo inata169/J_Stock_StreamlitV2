@@ -112,8 +112,8 @@ def render_symbol_selection(chart_info: Dict[str, Any]):
             single_symbol = st.text_input(
                 "銘柄コードを入力",
                 value="",
-                placeholder="例: 1928.T, 7203.T, AAPL",
-                help="日本株: 4桁コード.T、米国株: ティッカーシンボル"
+                placeholder="例: 1928, 7203, AAPL",
+                help="日本株: 4桁コード（.T不要）、米国株: ティッカーシンボル"
             )
         
         with col2:
@@ -131,8 +131,8 @@ def render_symbol_selection(chart_info: Dict[str, Any]):
             symbols_input = st.text_area(
                 f"銘柄コード（最大{max_symbols}銘柄）",
                 value="",
-                placeholder="例:\n1928.T\n7203.T\n6758.T\nAAPL",
-                help=f"1行に1銘柄ずつ入力。最大{max_symbols}銘柄まで",
+                placeholder="例:\n1928\n7203\n6758\nAAPL",
+                help=f"1行に1銘柄ずつ入力。日本株は4桁数字（.T不要）。最大{max_symbols}銘柄まで",
                 height=150
             )
         

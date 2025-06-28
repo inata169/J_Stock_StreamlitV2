@@ -108,7 +108,7 @@ class ChartDataManager:
                     orientation='h',
                     name='配当利回り',
                     marker_color=theme_config['color_sequence'][0],
-                    hovertemplate='%{y}<br>配当利回り: %{x:.2f}%<extra></extra>'
+                    hovertemplate='%{y}<br>配当利回り: %{x:.1f}%<extra></extra>'
                 ))
             
             # 警告ありデータ
@@ -120,7 +120,7 @@ class ChartDataManager:
                     orientation='h',
                     name='配当利回り（要注意）',
                     marker_color=theme_config['color_sequence'][3],
-                    hovertemplate='%{y}<br>配当利回り: %{x:.2f}%<br>⚠️ データ要確認<extra></extra>'
+                    hovertemplate='%{y}<br>配当利回り: %{x:.1f}%<br>⚠️ データ要確認<extra></extra>'
                 ))
             
             # レイアウト設定
@@ -173,11 +173,23 @@ class ChartDataManager:
             
             fig = go.Figure()
             
+            # カラーコードからRGBA値を計算
+            color_hex = theme_config['color_sequence'][0]
+            if color_hex.startswith('#'):
+                color_hex = color_hex[1:]
+            try:
+                r = int(color_hex[0:2], 16)
+                g = int(color_hex[2:4], 16)
+                b = int(color_hex[4:6], 16)
+                fillcolor = f'rgba({r}, {g}, {b}, 0.3)'
+            except:
+                fillcolor = 'rgba(31, 119, 180, 0.3)'  # デフォルトカラー
+            
             fig.add_trace(go.Scatterpolar(
                 r=list(metrics.values()),
                 theta=list(metrics.keys()),
                 fill='toself',
-                fillcolor=f'rgba{tuple(list(int(theme_config["color_sequence"][0][1:], 16)[i:i+2], 16) for i in (0, 2, 4)) + [0.3]}',
+                fillcolor=fillcolor,
                 line_color=theme_config['color_sequence'][0],
                 name=symbol,
                 hovertemplate='%{theta}<br>スコア: %{r:.1f}<extra></extra>'
