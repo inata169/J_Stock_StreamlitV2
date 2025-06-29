@@ -6,7 +6,7 @@ Core Package
 """
 
 # バージョン情報
-__version__ = "0.3.0"
+from ..version import __version__
 __author__ = "日本株ウォッチドッグ開発チーム"
 
 # 中核モジュールのインポート

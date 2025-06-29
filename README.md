@@ -1,4 +1,4 @@
-# 📊 日本株ウォッチドッグ v2.0.0
+# 📊 日本株ウォッチドッグ v2.1.0
 
 **株式市場学習・研究専用ツール（Streamlit Web版）**
 
@@ -18,9 +18,87 @@
 
 ---
 
-## 🚀 **超簡単インストール**
+## 🚀 **インストール方法**
 
-### 📱 **1クリックインストール**
+### 📦 **推奨：仮想環境を使用したインストール**
+
+仮想環境を使用することで、システムのPython環境を汚さずに安全にアプリケーションを実行できます。
+
+#### 🪟 **Windows（推奨手順）**
+```batch
+# 1. プロジェクトをダウンロード
+git clone https://github.com/inata169/J_Stock_StreamlitV2.git
+cd J_Stock_StreamlitV2
+
+# 2. 仮想環境を作成
+python -m venv .venv
+
+# 3. 仮想環境を有効化
+.venv\Scripts\activate
+
+# 4. 依存関係をインストール
+pip install -r requirements.txt
+
+# 5. 環境設定（オプション）
+copy .env.example .env
+# メモ帳で.envを編集（API制限などの設定）
+
+# 6. アプリケーションを起動
+streamlit run app.py
+```
+
+#### 🍎 **Mac（推奨手順）**
+```bash
+# 1. プロジェクトをダウンロード
+git clone https://github.com/inata169/J_Stock_StreamlitV2.git
+cd J_Stock_StreamlitV2
+
+# 2. 仮想環境を作成
+python3 -m venv .venv
+
+# 3. 仮想環境を有効化
+source .venv/bin/activate
+
+# 4. 依存関係をインストール
+pip install -r requirements.txt
+
+# 5. 環境設定（オプション）
+cp .env.example .env
+# お好みのエディタで.envを編集
+
+# 6. アプリケーションを起動
+streamlit run app.py
+```
+
+#### 🐧 **Linux（推奨手順）**
+```bash
+# 1. 必要なパッケージをインストール
+sudo apt update && sudo apt install python3 python3-pip python3-venv git -y
+
+# 2. プロジェクトをダウンロード
+git clone https://github.com/inata169/J_Stock_StreamlitV2.git
+cd J_Stock_StreamlitV2
+
+# 3. 仮想環境を作成
+python3 -m venv .venv
+
+# 4. 仮想環境を有効化
+source .venv/bin/activate
+
+# 5. 依存関係をインストール
+pip install -r requirements.txt
+
+# 6. 環境設定（オプション）
+cp .env.example .env
+# お好みのエディタで.envを編集
+
+# 7. アプリケーションを起動
+streamlit run app.py
+```
+
+### 📱 **クイックインストール（仮想環境なし）**
+
+システム環境に直接インストールする場合の手順です。
 
 #### 🪟 **Windows**
 1. [Python公式サイト](https://www.python.org/downloads/)から最新版をダウンロード（**「Add Python to PATH」にチェック必須**）
@@ -32,32 +110,48 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-#### 🍎 **Mac**
-```bash
-# Homebrewインストール
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# アプリインストール・起動
-brew install python
-cd Desktop && curl -L https://github.com/inata169/J_Stock_StreamlitV2/archive/refs/heads/main.zip -o stock.zip
-unzip stock.zip && cd J_Stock_StreamlitV2-main
-pip3 install -r requirements.txt && streamlit run app.py
-```
-
-#### 🐧 **Linux (Ubuntu/Debian)**
-```bash
-sudo apt update && sudo apt install python3 python3-pip unzip curl -y
-cd ~/Desktop && curl -L https://github.com/inata169/J_Stock_StreamlitV2/archive/refs/heads/main.zip -o stock.zip
-unzip stock.zip && cd J_Stock_StreamlitV2-main
-pip3 install -r requirements.txt && streamlit run app.py
-```
-
 #### ⚡ **上級者向け1行インストール**
 ```bash
 git clone https://github.com/inata169/J_Stock_StreamlitV2.git && cd J_Stock_StreamlitV2 && pip install -r requirements.txt && streamlit run app.py
 ```
 
+### 🔧 **環境設定（オプション）**
+
+`.env.example`ファイルを`.env`にコピーして、API制限やキャッシュ設定をカスタマイズできます：
+
+```bash
+# API制限の調整
+YAHOO_API_HOURLY_LIMIT=200    # デフォルト: 100
+YAHOO_API_MINUTE_LIMIT=20      # デフォルト: 10
+
+# キャッシュ設定
+ENABLE_CACHE=true              # キャッシュ有効化
+CACHE_TTL=900                  # キャッシュ有効期限（秒）
+```
+
 **成功**: ブラウザで `http://localhost:8501` が自動で開きます！ 🎉
+
+---
+
+## 🔥 **v2.1.0 新機能**
+
+### 🎛️ **API制限リアルタイム監視・調整**
+- **サイドバー監視**: API使用状況をリアルタイム表示
+- **動的制限調整**: スライドバーで1分・1時間のリクエスト制限を調整可能
+- **使用率可視化**: プログレスバーとメトリクスで使用状況を把握
+- **推奨設定**: 控えめ・通常・高頻度・最大性能の4プリセット
+
+### ⚙️ **設定管理システム**
+- **config.py**: API制限・キャッシュ設定の一元管理
+- **.env対応**: 環境変数での設定カスタマイズ
+- **プリセット機能**: 用途別の推奨設定
+- **動的更新**: アプリ実行中の設定変更対応
+
+### 📚 **開発者体験向上**
+- **仮想環境対応**: venv推奨インストール手順
+- **データ保存場所**: 詳細な保存先ドキュメント
+- **MITライセンス**: オープンソース対応
+- **GitHub準備**: パブリックリポジトリ公開準備完了
 
 ---
 
@@ -300,6 +394,73 @@ cp .streamlit/secrets.toml.template .streamlit/secrets.toml
 | キャッシュ有効期限 | 15分 | 自動最適化 |
 | CSV最大サイズ | 200MB | 自動チェック |
 | 同時処理銘柄数 | 10銘柄 | バッチ処理 |
+
+---
+
+## 💾 **データ保存場所**
+
+### 📂 **保存データの場所**
+
+アプリケーションで作成・保存されるデータは全てローカルPC内に保存されます：
+
+#### 🗄️ **データベースファイル**
+```
+📁 プロジェクトディレクトリ/
+├── stock_watchdog.db        # メインデータベース（ポートフォリオ・監視リスト）
+├── j_stock_v2.db           # v2.0統一アーキテクチャ用データベース
+└── data/
+    └── stock_portfolio.db  # 設定でカスタマイズした場合
+```
+
+#### 📊 **CSVファイル**
+```
+📁 プロジェクトディレクトリ/
+├── your_portfolio.csv      # アップロードしたポートフォリオCSV
+└── exported_data.csv       # エクスポートしたデータ（ダウンロード）
+```
+
+#### 📝 **ログファイル**
+```
+📁 プロジェクトディレクトリ/
+├── app.log                 # アプリケーション動作ログ
+└── logs/
+    ├── app.log            # 構造化ログ
+    └── health_check.log   # ヘルスチェックログ
+```
+
+#### 🔄 **キャッシュ・一時ファイル**
+```
+📁 ホームディレクトリ/
+└── .streamlit/            # Streamlitシステムキャッシュ
+
+📁 プロジェクトディレクトリ/
+├── __pycache__/          # Pythonキャッシュ（自動生成）
+└── .venv/                # 仮想環境（推奨インストール時）
+```
+
+### 🔧 **データ管理のヒント**
+
+| 操作 | 方法 | 注意点 |
+|------|------|--------|
+| **データバックアップ** | `*.db`ファイルをコピー | 定期的なバックアップ推奨 |
+| **データリセット** | `*.db`ファイルを削除 | 全てのデータが失われます |
+| **ポータブル使用** | プロジェクトフォルダごと移動 | 相対パスで設計済み |
+| **データエクスポート** | アプリ内のエクスポート機能使用 | CSV形式でダウンロード可能 |
+
+### 📍 **データ場所の確認方法**
+
+```bash
+# データベースファイルの確認
+find . -name "*.db" -maxdepth 2
+
+# ログファイルの確認  
+find . -name "*.log" -maxdepth 2
+
+# CSVファイルの確認
+find . -name "*.csv" -maxdepth 2 | grep -v ".venv"
+```
+
+**重要**: 全てのデータはローカルPC内に保存され、外部サーバーには一切送信されません。
 
 ---
 

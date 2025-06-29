@@ -16,6 +16,11 @@ from core.database_init import initialize_stock_database
 
 # ページのインポート
 from pages import strategy, charts, portfolio, watchlist
+from core.multi_data_source import MultiDataSourceManager
+
+# 設定のインポート
+import config
+from version import get_full_version_string
 
 # ログ設定
 logging.basicConfig(
@@ -39,10 +44,17 @@ def configure_page():
         menu_items={
             'Get Help': 'https://github.com/inata169/J_Stock_StreamlitV2',
             'Report a bug': 'https://github.com/inata169/J_Stock_StreamlitV2/issues',
-            'About': """
-            # 日本株ウォッチドッグ v2.0.0
+            'About': f"""
+            # 日本株ウォッチドッグ {get_full_version_string()}
             
             株式市場学習・研究専用ツール（新統一データベース版）
+            
+            **v2.1.0 新機能:**
+            - 🎛️ API制限リアルタイム監視・調整機能
+            - ⚙️ config.py + .env 設定管理システム
+            - 📚 仮想環境対応インストール手順
+            - 📂 データ保存場所の詳細ドキュメント
+            - 🏷️ MITライセンス対応
             
             **v2.0.0 新機能:**
             - 🏗️ 「両方の真実保持」データベース設計
@@ -102,6 +114,23 @@ def initialize_session_state():
     
     if 'api_error_count' not in st.session_state:
         st.session_state.api_error_count = 0
+    
+    # データソースマネージャー
+    if 'data_source_manager' not in st.session_state:
+        manager = MultiDataSourceManager()
+        # config.pyから設定を適用
+        yahoo_limits = config.API_RATE_LIMITS['yahoo_finance']
+        manager.api_limits['yahoo_finance']['requests_per_hour'] = yahoo_limits['requests_per_hour']
+        manager.api_limits['yahoo_finance']['requests_per_minute'] = yahoo_limits['requests_per_minute']
+        st.session_state.data_source_manager = manager
+    
+    # API制限設定（config.pyから読み込み）
+    if 'api_rate_limits' not in st.session_state:
+        yahoo_limits = config.API_RATE_LIMITS['yahoo_finance']
+        st.session_state.api_rate_limits = {
+            'requests_per_hour': yahoo_limits['requests_per_hour'],
+            'requests_per_minute': yahoo_limits['requests_per_minute']
+        }
 
 
 def render_sidebar_navigation():
@@ -109,7 +138,7 @@ def render_sidebar_navigation():
     with st.sidebar:
         # アプリケーションヘッダー
         st.title("📊 日本株ウォッチドッグ")
-        st.caption("v2.0.0 - 統一データベース版")
+        st.caption(get_full_version_string())
         
         st.markdown("---")
         
@@ -179,6 +208,9 @@ def render_app_status_sidebar():
     
     st.metric("現在のページ", current_page_name)
     
+    # API使用状況
+    render_api_usage_stats()
+    
     # セッション管理
     with st.expander("🔧 セッション管理"):
         if st.button("🔄 セッションリセット", use_container_width=True):
@@ -197,6 +229,83 @@ def render_app_status_sidebar():
             "デバッグ情報表示",
             value=st.session_state.show_debug_info
         )
+
+
+def render_api_usage_stats():
+    """API使用状況の表示と設定"""
+    st.markdown("---")
+    st.subheader("🌐 API使用状況")
+    
+    # 現在の使用状況を取得
+    if hasattr(st.session_state, 'data_source_manager'):
+        stats = st.session_state.data_source_manager.get_api_usage_stats()
+        
+        # 使用状況の表示
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(
+                "過去1時間",
+                f"{stats['requests_last_hour']}/{stats['hourly_limit']}",
+                delta=f"{stats['hourly_remaining']}残"
+            )
+        with col2:
+            st.metric(
+                "過去1分",
+                f"{stats['requests_last_minute']}/{stats['minute_limit']}",
+                delta=None
+            )
+        
+        # プログレスバー
+        hourly_usage = stats['requests_last_hour'] / stats['hourly_limit']
+        st.progress(hourly_usage, text=f"時間制限: {hourly_usage * 100:.1f}%")
+    
+    # API制限設定
+    with st.expander("⚙️ API制限設定"):
+        st.info("APIレート制限を調整できます。デフォルト値は控えめに設定されています。")
+        
+        # 時間あたりの制限
+        new_hourly_limit = st.slider(
+            "1時間あたりのリクエスト数",
+            min_value=50,
+            max_value=500,
+            value=st.session_state.api_rate_limits['requests_per_hour'],
+            step=10,
+            help="Yahoo Finance APIの1時間あたりの最大リクエスト数"
+        )
+        
+        # 分あたりの制限
+        new_minute_limit = st.slider(
+            "1分あたりのリクエスト数",
+            min_value=5,
+            max_value=30,
+            value=st.session_state.api_rate_limits['requests_per_minute'],
+            step=1,
+            help="Yahoo Finance APIの1分あたりの最大リクエスト数"
+        )
+        
+        # 設定の適用
+        if st.button("設定を適用", use_container_width=True):
+            # セッション状態を更新
+            st.session_state.api_rate_limits['requests_per_hour'] = new_hourly_limit
+            st.session_state.api_rate_limits['requests_per_minute'] = new_minute_limit
+            
+            # データソースマネージャーに適用
+            if hasattr(st.session_state, 'data_source_manager'):
+                st.session_state.data_source_manager.api_limits['yahoo_finance']['requests_per_hour'] = new_hourly_limit
+                st.session_state.data_source_manager.api_limits['yahoo_finance']['requests_per_minute'] = new_minute_limit
+            
+            st.success("API制限設定を更新しました")
+            st.rerun()
+        
+        # 推奨設定
+        st.caption("""
+        **推奨設定:**
+        - 通常使用: 100/時間、10/分
+        - 高頻度使用: 200/時間、20/分
+        - 最大性能: 300/時間、30/分
+        
+        ※Yahoo Finance APIの実際の制限に注意してください
+        """)
 
 
 def render_important_notice():
@@ -244,7 +353,7 @@ def render_debug_info():
             
             # v2.0.0: データベース状況
             'database_initialized': st.session_state.get('database_initialized', False),
-            'app_version': 'v2.0.0 - 統一データベース版'
+            'app_version': get_full_version_string()
         }
         st.json(debug_info)
 
@@ -288,8 +397,8 @@ def render_footer():
     col1, col2, col3 = st.columns([2, 1, 1])
     
     with col1:
-        st.markdown("""
-        **日本株ウォッチドッグ v2.0.0** | 
+        st.markdown(f"""
+        **日本株ウォッチドッグ {get_full_version_string()}** | 
         統一データベースアーキテクチャ | 
         学習・研究専用ツール
         """)
